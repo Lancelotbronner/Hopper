@@ -125,6 +125,14 @@ struct CppContext {
 }
 
 extension CppContext {
+	func label(_ addr: Address, as name: String, for task: String) {
+		let existing = file.findVirtualAddressNamed(name)
+		if existing > 0 {
+			doc.logErrorStringMessage("Collision for \(task) between \(existing) and \(addr)\n\t\(name)")
+		}
+		file.setName(name, forVirtualAddress: addr, reason: .NCReason_Automatic)
+	}
+
 	/// Check if Dword(vtbl-4) points to typeinfo record and extract the type name from it.
 	func isValidCOL(at col: Address) -> Bool {
 		let td = file.readAddress(atVirtualAddress: col+12)
@@ -135,6 +143,49 @@ extension CppContext {
 
 	func nameOfVtbl(at vtbl: Address) -> String {
 		nameOfCol(at: vtbl - 4)
+
+		/*
+		 //get class name for this vtable instance
+		 static GetVtableClass(x)
+		 {
+		   auto offset, n, i, s, a, p;
+		   offset = Dword(x+4);
+		   x = Dword(x+16); //Class Hierarchy Descriptor
+
+		   a=Dword(x+12); //pBaseClassArray
+		   n=Dword(x+8);  //numBaseClasses
+		   i = 0;
+		   s = "";
+		   while(i<n)
+		   {
+			 p = Dword(a);
+			 //Message(indent_str+"    BaseClass[%02d]:  %08.8Xh\n", i, p);
+			 if (Dword(p+8)==offset)
+			 {
+			   //found it
+			   s = GetAsciizStr(Dword(p)+8);
+			   return s;
+			 }
+			 i=i+1;
+			 a=a+4;
+		   }
+		   //didn't find matching one, let's get the first vbase
+		   i=0;
+		   a=Dword(x+12);
+		   while(i<n)
+		   {
+			 p = Dword(a);
+			 if (Dword(p+12)!=-1)
+			 {
+			   s = GetAsciizStr(Dword(p)+8);
+			   return s;
+			 }
+			 i=i+1;
+			 a=a+4;
+		   }
+		   return s;
+		 }
+		 */
 	}
 
 	func nameOfTd(at td_addr: Address) -> String {
@@ -159,10 +210,7 @@ extension CppContext {
 				guard addr != 0 else { break }
 				//TODO: Create function pointers
 				ty.addStructureField(ofType: file.voidPtrType(), named: "vfunction\(vfi)")
-				if let procedure = file.getOrCreateProcedure(at: addr) {
-					procedure.setCallingConvention(.thiscall)
-					file.setName("\(name)::vfunction\(vfi)", forVirtualAddress: addr, reason: .NCReason_Automatic)
-				}
+				markVfn(withName: name, for: vfi, at: addr)
 				vfi += 1
 				vft += 4
 			}
@@ -170,10 +218,10 @@ extension CppContext {
 		}
 	}
 
-	func markVfn(withName name: String, for i: Int, at vf_addr: Address) {
-		guard let procedure = file.getOrCreateProcedure(at: vf_addr) else { return }
+	func markVfn(withName name: String, for i: Int, at vfn_addr: Address) {
+		guard let procedure = file.getOrCreateProcedure(at: vfn_addr) else { return }
 		procedure.setCallingConvention(.thiscall)
-		file.setName("\(name)::vfunction\(i)", forVirtualAddress: vf_addr, reason: .NCReason_Automatic)
+		label(vfn_addr, as: "\(name)::vfunction\(i)", for: "Virtual Function")
 	}
 
 	func nameOfCol(at col: Address) -> String {
@@ -195,30 +243,31 @@ extension CppContext {
 		}
 		file.defineStructure(td_ty, at: td_addr)
 		file.add(td_tag, at: td_addr)
-		file.setName("\(name)::RTTI_Type_Descriptor", forVirtualAddress: td_addr, reason: .NCReason_Automatic)
+		label(td_addr, as: "\(name)::RTTI_Type_Descriptor", for: "Type Descriptor")
 	}
 
 	func markCol(withName name: String, at col_addr: Address) {
 		file.defineStructure(col_ty, at: col_addr)
 		file.add(col_tag, at: col_addr)
-		file.setName("\(name)::RTTI_Complete_Object_Locator", forVirtualAddress: col_addr, reason: .NCReason_Automatic)
+		label(col_addr, as: "\(name)::RTTI_Complete_Object_Locator", for: "Complete Object Locator")
 	}
 
 	mutating func markColAndFriends(withName name: String? = nil, at col_addr: Address) {
 		guard !_col.contains(col_addr) else { return }
+		_col.insert(col_addr)
+
 		let name = name ?? nameOfCol(at: col_addr)
 		markCol(withName: name, at: col_addr)
 
 		let chd_addr = chdOfCol(at: col_addr)
 		markChdAndFriends(withName: name, at: chd_addr)
-		_col.insert(col_addr)
 	}
 
 	func markVtbl(withName name: String, at vft_addr: Address) {
 		let vft_ty = typeOfVtbl(withName: name, at: vft_addr)
 		file.defineStructure(vft_ty, at: vft_addr)
 		file.add(vft_tag, at: vft_addr)
-		file.setName("\(name)::vftable", forVirtualAddress: vft_addr, reason: .NCReason_Automatic)
+		label(vft_addr, as: "\(name)::vftable", for: "Virtual Function Table")
 	}
 
 	func colOfVtbl(at vft_addr: Address) -> Address {
@@ -231,6 +280,8 @@ extension CppContext {
 
 	mutating func markVtblAndFriends(at vft_addr: Address) {
 		guard !_vft.contains(vft_addr) else { return }
+		_vft.insert(vft_addr)
+
 		let meta_addr = vft_addr - 4
 		file.defineStructure(col_ptr_ty, at: meta_addr)
 
@@ -240,13 +291,12 @@ extension CppContext {
 		markColAndFriends(withName: name, at: col_addr)
 		markTd(withName: name, at: td_addr)
 		markVtbl(withName: name, at: vft_addr)
-		_vft.insert(vft_addr)
 	}
 
 	func markChd(withName name: String, at chd_addr: Address) {
 		file.defineStructure(chd_ty, at: chd_addr)
 		file.add(chd_tag, at: chd_addr)
-		file.setName("\(name)::RTTI_Class_Hierarchy_Descriptor", forVirtualAddress: chd_addr, reason: .NCReason_Automatic)
+		label(chd_addr, as: "\(name)::RTTI_Class_Hierarchy_Descriptor", for: "Class Hierarchy Descriptor")
 	}
 
 	func sizeOfBca(at bca_addr: Address) -> UInt {
@@ -267,17 +317,17 @@ extension CppContext {
 
 	mutating func markChdAndFriends(withName name: String, at chd_addr: Address) {
 		guard !_chd.contains(chd_addr) else { return }
-		markChd(withName: name, at: chd_addr)
+		_chd.insert(chd_addr)
 
 		let bca_addr = bcaOfChd(at: chd_addr)
 		let bca_count = sizeOfBcaInChd(at: chd_addr)
+		markChd(withName: name, at: chd_addr)
 		markBca(withName: name, count: UInt(bca_count), at: bca_addr)
 
 		for i in 0..<Address(bca_count) {
-			let bcd_addr = file.readAddress(atVirtualAddress: bca_addr + i * 4)
+			let bcd_addr = bcd(at: i, ofBca: bca_addr)
 			markBcdAndFriends(at: bcd_addr)
 		}
-		_chd.insert(chd_addr)
 	}
 
 	func markBca(withName name: String, count: UInt, at bca_addr: Address) {
@@ -289,28 +339,33 @@ extension CppContext {
 		}
 		file.defineStructure(file.arrayType(of: file.pointerType(on: bcd_ty), withCount: UInt(bca_count)), at: bca_addr)
 		file.add(bca_tag, at: bca_addr)
-		file.setName("\(name)::RTTI_Base_Class_Array", forVirtualAddress: bca_addr, reason: .NCReason_Automatic)
+		label(bca_addr, as: "\(name)::RTTI_Base_Class_Array", for: "Base Class Array")
 	}
 
-	func bcd(at i: UInt, ofBca bca_addr: Address) -> Address {
-		file.readAddress(atVirtualAddress: bca_addr + Address(i * 4))
+	func bcd(at i: Address, ofBca bca_addr: Address) -> Address {
+		file.readAddress(atVirtualAddress: bca_addr + i * 4)
 	}
 
 	func markBcd(withName name: String, at bcd_addr: Address) {
 		file.defineStructure(bcd_ty, at: bcd_addr)
 		file.add(bcd_tag, at: bcd_addr)
-		file.setName("\(name)::RTTI_Base_Class_Descriptor", forVirtualAddress: bcd_addr, reason: .NCReason_Automatic)
+		label(bcd_addr, as: "\(name)::RTTI_Base_Class_Descriptor", for: "Base Class Descriptor")
+	}
+
+	func chdOfBcd(at bcd_addr: Address) -> Address {
+		file.readAddress(atVirtualAddress: bcd_addr + 24)
 	}
 
 	mutating func markBcdAndFriends(at bcd_addr: Address) {
 		guard !_bcd.contains(bcd_addr) else { return }
-		let td_addr = file.readAddress(atVirtualAddress: bcd_addr)
-		let chd_addr = file.readAddress(atVirtualAddress: bcd_addr + 24)
+		_bcd.insert(bcd_addr)
+
+		let td_addr = tdOfBcd(at: bcd_addr)
+		let chd_addr = chdOfBcd(at: bcd_addr)
 		let name = nameOfTd(at: td_addr)
 		markBcd(withName: name, at: bcd_addr)
 		markTd(withName: name, at: td_addr)
-		markChd(withName: name, at: chd_addr)
-		_bcd.insert(bcd_addr)
+		markChdAndFriends(withName: name, at: chd_addr)
 	}
 
 	mutating func scanVtbl(at a: Address) -> Bool {
