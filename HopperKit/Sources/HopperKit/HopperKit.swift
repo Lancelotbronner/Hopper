@@ -23,4 +23,14 @@ public extension HPDisassembledFile {
 		}
 		return makeProcedure(at: address)
 	}
+
+	func countOfNonNull32(at a: Address) -> UInt {
+		var count: UInt = 0
+		var a = a
+		while readUInt32(atVirtualAddress: a) != 0 {
+			count += 1
+			a += 4
+		}
+		return count
+	}
 }

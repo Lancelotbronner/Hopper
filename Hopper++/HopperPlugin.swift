@@ -1,6 +1,6 @@
 //
-//  HopperCpp.swift
-//  HopperCpp
+//  HopperPlugin.swift
+//  HopperPlugin
 //
 //  Created by Vincent Bénony on 26/04/2019.
 //  Copyright © 2019 Cryptic Apps. All rights reserved.
@@ -11,7 +11,7 @@ import CoreHopper
 import HopperKit
 
 @objc(HopperCpp)
-class HopperCpp : NSObject, HopperTool {
+class HopperPlugin : NSObject, HopperTool {
 	let services: HPHopperServices!
 
 	static func sdkVersion() -> Int32 {
@@ -83,6 +83,10 @@ class HopperCpp : NSObject, HopperTool {
 						HPM_SELECTOR: "reloadTypeDescriptors:"
 					],
 					[
+						HPM_TITLE: "Scan for Virtual Function Tables",
+						HPM_SELECTOR: "scanForVirtualFunctionTables:",
+					],
+					[
 						HPM_TITLE: "Reload RTTI Complete Object Locators",
 						HPM_SELECTOR: "reloadCompleteObjectLocators:"
 					]
@@ -121,7 +125,7 @@ class HopperCpp : NSObject, HopperTool {
 	}
 }
 
-extension HopperCpp {
+extension HopperPlugin {
 	static let type_info = ".?AVtype_info@@"
 
 	@objc func reloadTypeDescriptors(_ sender: AnyObject!) {
@@ -180,9 +184,11 @@ extension HopperCpp {
 				guard
 					file.readInt8(atVirtualAddress: addr) == 0x2e,
 					let mangled = file.readCString(at: addr),
-					mangled.starts(with: ".?"),
+					mangled.starts(with: ".?A"),
 					mangled.hasSuffix("@@")
 				else { continue }
+
+				//NOTE: .?AV=classes, .?AU=structs
 
 				//TODO: demangle the name
 				file.setType(.Type_ASCII, atVirtualAddress: addr, forLength: mangled.count)
@@ -247,6 +253,14 @@ extension HopperCpp {
 
 			doc.logInfoMessage("Updated \(found) RTTI Type Descriptors")
 		}
+	}
+
+	@objc func scanForVirtualFunctionTables(_ sender: AnyObject!) {
+		guard var ctx = CppContext("Scan for Virtual Function Tables", services: services) else { return }
+		let found = ctx.scanForVirtualFunctionTables()
+		ctx.file.beginUndoRedoTransaction(withName: "Scan for Virtual Function Tables")
+		ctx.doc.logInfoMessage("Scanned \(found) Virtual Function Tables")
+		ctx.file.endUndoRedoTransaction()
 	}
 
 	func reloadCompleteObjectLocators(_ sender: AnyObject!) {
