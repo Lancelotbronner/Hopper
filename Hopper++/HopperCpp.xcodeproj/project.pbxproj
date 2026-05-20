@@ -10,6 +10,7 @@
 		73885FAE2FBD47A600B92252 /* HopperCpp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73885FAD2FBD47A100B92252 /* HopperCpp.swift */; };
 		73885FB12FBD480200B92252 /* CoreHopper in Frameworks */ = {isa = PBXBuildFile; productRef = 73885FB02FBD480200B92252 /* CoreHopper */; };
 		73885FB52FBD485700B92252 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 73885FB32FBD485700B92252 /* InfoPlist.strings */; };
+		73885FB72FBD853100B92252 /* Hopper+.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73885FB62FBD852E00B92252 /* Hopper+.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +18,7 @@
 		73885FAD2FBD47A100B92252 /* HopperCpp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HopperCpp.swift; sourceTree = "<group>"; };
 		73885FB22FBD484F00B92252 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		73885FB42FBD485700B92252 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		73885FB62FBD852E00B92252 /* Hopper+.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Hopper+.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -34,6 +36,7 @@
 		07AC765A18C8CB9A007D5414 = {
 			isa = PBXGroup;
 			children = (
+				73885FB62FBD852E00B92252 /* Hopper+.swift */,
 				73885FB32FBD485700B92252 /* InfoPlist.strings */,
 				73885FB22FBD484F00B92252 /* Info.plist */,
 				73885FAD2FBD47A100B92252 /* HopperCpp.swift */,
@@ -143,6 +146,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				73885FAE2FBD47A600B92252 /* HopperCpp.swift in Sources */,
+				73885FB72FBD853100B92252 /* Hopper+.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -76,11 +76,15 @@ class HopperCpp : NSObject, HopperTool {
 				]
 			],
 			[
-				HPM_TITLE: "C++ RTTI",
+				HPM_TITLE: "C++",
 				HPM_SUBMENU: [
 					[
-						HPM_TITLE: "Reload Type Descriptors",
+						HPM_TITLE: "Reload RTTI Type Descriptors",
 						HPM_SELECTOR: "reloadTypeDescriptors:"
+					],
+					[
+						HPM_TITLE: "Reload RTTI Complete Object Locators",
+						HPM_SELECTOR: "reloadCompleteObjectLocators:"
 					]
 				]
 			]
@@ -118,6 +122,8 @@ class HopperCpp : NSObject, HopperTool {
 }
 
 extension HopperCpp {
+	static let type_info = ".?AVtype_info@@"
+
 	@objc func reloadTypeDescriptors(_ sender: AnyObject!) {
 		guard let doc = services.currentDocument() else { return }
 		doc.logInfoMessage("Analysis: Reloading RTTI Type Descriptors")
@@ -132,9 +138,41 @@ extension HopperCpp {
 		}
 
 		DispatchQueue.global().async {
-			let rtti_type_descriptor = file.buildTag("RTTI Type Descriptor")
-			let rtti_vftable = file.buildTag("Virtual Function Table")
+			let td_tag = file.buildTag("RTTI Type Descriptor")
+			let vft_tag = file.buildTag("Virtual Function Table")
+			let col_tag = file.buildTag("RTTI Complete Object Locator")
+			let chd_tag = file.buildTag("RTTI Class Hierarchy Descriptor")
+			let bca_tag = file.buildTag("RTTI Base Class Array")
+			let bcd_tag = file.buildTag("RTTI Base Class Descriptor")
+			var vft_ty: (any HPTypeDesc & NSObjectProtocol)!
 			var found = 0
+
+			let chd_ty = file.type(withName: "RTTI_Class_Hierarchy_Descriptor") {
+				let ty = file.structureType()
+				ty.addStructureField(ofType: file.uint32Type(), named: "signature")
+				ty.addStructureField(ofType: file.uint32Type(), named: "attributes")
+				ty.addStructureField(ofType: file.uint32Type(), named: "numBaseClasses")
+				ty.addStructureField(ofType: file.voidPtrType(), named: "pBaseClassArray")
+				return ty
+			}
+
+			let pmd_ty = file.type(withName: "RTTI_PMD") {
+				let ty = file.structureType()
+				ty.addStructureField(ofType: file.voidPtrType(), named: "mdisp")
+				ty.addStructureField(ofType: file.voidPtrType(), named: "pdisp")
+				ty.addStructureField(ofType: file.voidPtrType(), named: "vdisp")
+				return ty
+			}
+
+			let bcd_ty = file.type(withName: "RTTI_Base_Class_Descriptor") {
+				let ty = file.structureType()
+				ty.addStructureField(ofType: file.voidPtrType(), named: "pTypeDescriptor")
+				ty.addStructureField(ofType: file.uint32Type(), named: "numContainedBases")
+				ty.addStructureField(ofType: pmd_ty, named: "where")
+				ty.addStructureField(ofType: file.uint32Type(), named: "attributes")
+				ty.addStructureField(ofType: file.voidPtrType(), named: "pClassDescriptor")
+				return ty
+			}
 
 			let start = data.startAddress()
 			let end = Double(data.endMappedDataAddress() - start)
@@ -146,45 +184,63 @@ extension HopperCpp {
 					mangled.hasSuffix("@@")
 				else { continue }
 
+				//TODO: demangle the name
 				file.setType(.Type_ASCII, atVirtualAddress: addr, forLength: mangled.count)
 
-				let vftable = file.type(withName: "\(mangled)::vtable") {
-					let ty = file.structureType()
-					var vft = file.readAddress(atVirtualAddress: addr - 8)
-					var vfi = 1
-					while file.readUInt32(atVirtualAddress: vft) != 0 {
-						let ftype = file.type(withName: "\(mangled)::vtable::vfunction\(vfi)") {
-							//TODO: How do I create a function pointer here?
-							let ty = file.structureType()
-							return ty
-						}
-						ty.addStructureField(ofType: ftype, named: "vfunction\(vfi)")
-						vfi += 1
-						vft += 4
-					}
-					return ty
+				// Only create the type_info::vftable infra once
+				if vft_ty == nil {
+					let vft_addr = file.readAddress(atVirtualAddress: addr - 8)
+
+					vft_ty = file.vftable(
+						withName: Self.type_info,
+						at: vft_addr)
+
+					let td_ty = file.rtti_typeDescriptor(
+						withName: Self.type_info,
+						withVirtualFunctionTable: vft_ty)
+
+					file.defineStructure(vft_ty, at: vft_addr)
+					file.add(vft_tag, at: vft_addr)
+					file.setName("\(Self.type_info)::vftable", forVirtualAddress: vft_addr, reason: .NCReason_Automatic)
+
+					let col_ty = file.rtti_completeObjectLocator(
+						withName: Self.type_info,
+						withTypeDescriptor: td_ty,
+						withCallHierarchyDescriptor: chd_ty)
+
+					let meta_addr = vft_addr - 4
+					file.defineStructure(file.pointerType(on: col_ty), at: meta_addr)
+
+					let col_addr = file.readAddress(atVirtualAddress: meta_addr)
+					file.defineStructure(col_ty, at: col_addr)
+					file.add(col_tag, at: col_addr)
+					file.setName("\(Self.type_info)::RTTI_Complete_Object_Locator", forVirtualAddress: col_addr, reason: .NCReason_Automatic)
+
+					let chd_addr = file.readAddress(atVirtualAddress: col_addr + 16)
+					file.defineStructure(chd_ty, at: chd_addr)
+					file.add(chd_tag, at: chd_addr)
+					file.setName("\(Self.type_info)::RTTI_Class_Hierarchy_Descriptor", forVirtualAddress: chd_addr, reason: .NCReason_Automatic)
+
+					let bca_addr = file.readAddress(atVirtualAddress: chd_addr + 12)
+					let bca_count = file.readUInt32(atVirtualAddress: chd_addr + 8)
+					file.defineStructure(file.arrayType(of: file.pointerType(on: bcd_ty), withCount: UInt(bca_count)), at: bca_addr)
+					file.add(bca_tag, at: bca_addr)
+					file.setName("\(Self.type_info)::RTTI_Base_Class_Array", forVirtualAddress: bca_addr, reason: .NCReason_Automatic)
+
+					let bcd_addr = file.readAddress(atVirtualAddress: bca_addr)
+					file.defineStructure(bcd_ty, at: bcd_addr)
+					file.add(bcd_tag, at: bcd_addr)
+					file.setName("\(Self.type_info)::RTTI_Base_Class_Descriptor", forVirtualAddress: bcd_addr, reason: .NCReason_Automatic)
 				}
 
-				let ty = file.type(withName: "\(mangled)::RTTI_Type_Descriptor") {
-					let ty = file.structureType()
-					ty.addStructureField(ofType: file.pointerType(on: vftable), named: "pVFTable")
-					ty.addStructureField(ofType: file.voidPtrType(), named: "spare")
-					let name = file.arrayType(of: file.charType(), withCount: UInt(mangled.count))
-					name.setSingleLineDisplay(true)
-					//TODO: Display as Ascii
-					ty.addStructureField(ofType: name, named: "name")
-					return ty
-				}
+				let td_ty = file.rtti_typeDescriptor(
+					withName: mangled,
+					withVirtualFunctionTable: vft_ty)
 
 				let td_addr = addr - 8
-				file.defineStructure(ty, at: td_addr)
-				file.add(rtti_type_descriptor, at: td_addr)
+				file.defineStructure(td_ty, at: td_addr)
+				file.add(td_tag, at: td_addr)
 				file.setName("\(mangled)::RTTI_Type_Descriptor", forVirtualAddress: td_addr, reason: .NCReason_Automatic)
-
-				let vft_addr = file.readAddress(atVirtualAddress: td_addr)
-				file.defineStructure(vftable, at: vft_addr)
-				file.add(rtti_vftable, at: vft_addr)
-				file.setName("\(mangled)::vftable", forVirtualAddress: vft_addr, reason: .NCReason_Automatic)
 
 				found += 1
 			}
@@ -193,77 +249,42 @@ extension HopperCpp {
 		}
 	}
 
-		/*
-		 import hopper_api
+	func reloadCompleteObjectLocators(_ sender: AnyObject!) {
+		guard let doc = services.currentDocument() else { return }
+		doc.logInfoMessage("Analysis: Reloading RTTI Complete Object Locators")
+		doc.waitForBackgroundProcessToEnd()
 
-		 doc = Document.getCurrentDocument()
-		 rtty_tag = doc.buildTag("RTTI Type Descriptor")
-		 seg = doc.getSegmentByName(".data")
-		 adr = seg.getStartingAddress()
-		 SOS = adr
-		 EOS = adr + seg.getLength()
-		 found = 0
+		guard
+			let file = doc.disassembledFile(),
+			let data = file.segmentNamed(".data"),
+			let rdata = file.segmentNamed(".rdata")
+		else {
+			doc.logErrorStringMessage("Failed to retrieve disassembled file or .data segment")
+			return
+		}
 
-		 print(f"Analyzing in {seg.getName()} from 0x{adr:X} to 0x{EOS:X}")
-		 while adr < EOS:
-			 # Bail out once we're no longer in the file
-			 if doc.getFileOffsetFromAddress(adr) == -1:
-				 break
+		DispatchQueue.global().async {
+			let td_tag = file.buildTag("RTTI Type Descriptor")
+			let col_tag = file.buildTag("RTTI Complete Object Locator")
+			let chd_tag = file.buildTag("RTTI Class Hierarchy Descriptor")
+			let bca_tag = file.buildTag("RTTI Base Class Array")
+			let bcd_tag = file.buildTag("RTTI Base Class Descriptor")
+			var found = 0
 
-			 # Look for the TypeDescriptor magic
-			 if doc.readUInt32LE(adr) != 0x1170f5b4:
-				 adr += 4
-				 continue
+			let start = data.startAddress()
+			let end = Double(data.endMappedDataAddress() - start)
+			for addr in data.mappedAddresses {
 
-			 # Identify the TypeDescriptor struct
-			 # TODO: Mark as structure type {void*,void*,char[]}
-			 base = adr
-			 doc.addTagAtAddress(rtty_tag, base)
-			 seg.setTypeAtAddress(base + 4, 4, Segment.TYPE_INT32)
-			 adr += 8
 
-			 # Parse the name
-			 # TODO: should be part of the struct via char[]
-			 start = adr
-			 while doc.readByte(adr) != 0x00:
-				 adr += 1
-			 length = adr - start
-			 seg.setTypeAtAddress(start, length, Segment.TYPE_ASCII)
+				found += 1
+			}
 
-			 # Demangle the type name and label the type descriptor
-			 # TODO: Get Hopper's demangler working instead
-			 name = doc.readBytes(start+1, length-1).decode()
-			 name = seg.getDemangledNameAtAddress(start+1) or name
-			 seg.setNameAtAddress(base, f"{name} RTTI Type Descriptor")
-			 seg.setTypeAtAddress(base, 8, Segment.TYPE_STRUCTURE)
-
-			 print(f"0x{base:x}  {name}")
-			 found += 1
-
-			 # Realign after name
-			 # TODO: Figure out the proper alignments and set null bytes as alignment
-			 min = adr
-			 adr = base
-			 while adr < min:
-				 adr += 4
-
-		 */
+			doc.logInfoMessage("Updated \(found) Complete Object Locators")
+		}
 	}
+}
 
 	/*
-	 import hopper_api
-
-	 doc = Document.getCurrentDocument()
-	 td_tag = doc.buildTag("RTTI Type Descriptor")
-	 col_tag = doc.buildTag("RTTI Complete Object Locator")
-	 chd_tag = doc.buildTag("RTTI Class Hierarchy Descriptor")
-	 bca_tag = doc.buildTag("RTTI Base Class Array")
-	 bcd_tag = doc.buildTag("RTTI Base Class Descriptor")
-	 data = doc.getSegmentByName(".data")
-	 rdata = doc.getSegmentByName(".rdata")
-	 global found
-	 found = 0
-
 	 def references_from(seg, base, offset):
 		 if seg.getTypeAtAddress(base) == Segment.TYPE_STRUCTURE:
 			 addr = base

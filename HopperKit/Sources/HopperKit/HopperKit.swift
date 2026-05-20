@@ -16,4 +16,11 @@ public extension HPDisassembledFile {
 		ty.setName(name)
 		return ty
 	}
+
+	func getOrCreateProcedure(at address: Address) -> (any HPProcedure & NSObjectProtocol)? {
+		if let p = procedure(at: address) {
+			return p
+		}
+		return makeProcedure(at: address)
+	}
 }
