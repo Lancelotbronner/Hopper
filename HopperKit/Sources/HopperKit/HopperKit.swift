@@ -12,6 +12,8 @@ public extension HPDisassembledFile {
 		if let ty = type(withName: name) {
 			return ty
 		}
-		return create()
+		let ty = create()
+		ty.setName(name)
+		return ty
 	}
 }

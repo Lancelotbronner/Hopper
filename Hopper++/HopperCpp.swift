@@ -119,58 +119,79 @@ class HopperCpp : NSObject, HopperTool {
 
 extension HopperCpp {
 	@objc func reloadTypeDescriptors(_ sender: AnyObject!) {
+		guard let doc = services.currentDocument() else { return }
+		doc.logInfoMessage("Analysis: Reloading RTTI Type Descriptors")
+		doc.waitForBackgroundProcessToEnd()
+
 		guard
-			let doc = services.currentDocument(),
 			let file = doc.disassembledFile(),
 			let data = file.segmentNamed(".data")
-		else { return }
-
-		doc.logInfoMessage("end \(data.endAddress()) vs mapped \(data.endMappedDataAddress())")
-		return;
-
-		doc.begin(toWait: "Reloading RTTI Type Descriptor")
-		defer { doc.endWaiting() }
-
-		let tag = file.buildTag("RTTI Type Descriptor")
-
-		for addr in data.mappedAddresses {
-			guard
-				file.readInt8(atVirtualAddress: addr) == 0x2e,
-				let mangled = file.readCString(at: addr),
-				mangled.starts(with: ".?"),
-				mangled.hasSuffix("@@")
-			else { continue }
-
-			file.setType(.Type_ASCII, atVirtualAddress: addr, forLength: mangled.count)
-
-			let vftable = file.type(withName: "\(mangled)::vtable") {
-				let ty = file.structureType()
-				let vft = file.readAddress(atVirtualAddress: addr - 8)
-				var vfi = 1
-				while file.readUInt32(atVirtualAddress: vft) != 0 {
-					let ftype = file.type(withName: "\(mangled)::vtable::vfunction\(vfi)") {
-						//TODO: Create a function pointer here
-						file.voidPtrType()
-					}
-					ty.addStructureField(ofType: ftype, named: "vfunction\(vfi)")
-					vfi += 1
-				}
-				return ty
-			}
-			let ty = file.type(withName: "\(mangled)::RTTI_Type_Descriptor") {
-				let ty = file.structureType()
-				ty.addStructureField(ofType: vftable, named: "pVFTable", withComment: "Virtual Function Table")
-				ty.addStructureField(ofType: file.voidPtrType(), named: "spare")
-				ty.addStructureField(ofType: file.arrayType(of: file.charType(), withCount: UInt(mangled.count)), named: "name")
-				return ty
-			}
-
-			file.defineStructure(ty, at: addr - 8)
-			file.add(tag, at: addr - 8)
-
-			let completion = Int(Double(addr) / Double(data.endMappedDataAddress()) * 100)
-			doc.logInfoMessage("\(completion) \(mangled)")
+		else {
+			doc.logErrorStringMessage("Failed to retrieve disassembled file or .data segment")
+			return
 		}
+
+		DispatchQueue.global().async {
+			let rtti_type_descriptor = file.buildTag("RTTI Type Descriptor")
+			let rtti_vftable = file.buildTag("Virtual Function Table")
+			var found = 0
+
+			let start = data.startAddress()
+			let end = Double(data.endMappedDataAddress() - start)
+			for addr in data.mappedAddresses {
+				guard
+					file.readInt8(atVirtualAddress: addr) == 0x2e,
+					let mangled = file.readCString(at: addr),
+					mangled.starts(with: ".?"),
+					mangled.hasSuffix("@@")
+				else { continue }
+
+				file.setType(.Type_ASCII, atVirtualAddress: addr, forLength: mangled.count)
+
+				let vftable = file.type(withName: "\(mangled)::vtable") {
+					let ty = file.structureType()
+					var vft = file.readAddress(atVirtualAddress: addr - 8)
+					var vfi = 1
+					while file.readUInt32(atVirtualAddress: vft) != 0 {
+						let ftype = file.type(withName: "\(mangled)::vtable::vfunction\(vfi)") {
+							//TODO: How do I create a function pointer here?
+							let ty = file.structureType()
+							return ty
+						}
+						ty.addStructureField(ofType: ftype, named: "vfunction\(vfi)")
+						vfi += 1
+						vft += 4
+					}
+					return ty
+				}
+
+				let ty = file.type(withName: "\(mangled)::RTTI_Type_Descriptor") {
+					let ty = file.structureType()
+					ty.addStructureField(ofType: file.pointerType(on: vftable), named: "pVFTable")
+					ty.addStructureField(ofType: file.voidPtrType(), named: "spare")
+					let name = file.arrayType(of: file.charType(), withCount: UInt(mangled.count))
+					name.setSingleLineDisplay(true)
+					//TODO: Display as Ascii
+					ty.addStructureField(ofType: name, named: "name")
+					return ty
+				}
+
+				let td_addr = addr - 8
+				file.defineStructure(ty, at: td_addr)
+				file.add(rtti_type_descriptor, at: td_addr)
+				file.setName("\(mangled)::RTTI_Type_Descriptor", forVirtualAddress: td_addr, reason: .NCReason_Automatic)
+
+				let vft_addr = file.readAddress(atVirtualAddress: td_addr)
+				file.defineStructure(vftable, at: vft_addr)
+				file.add(rtti_vftable, at: vft_addr)
+				file.setName("\(mangled)::vftable", forVirtualAddress: vft_addr, reason: .NCReason_Automatic)
+
+				found += 1
+			}
+
+			doc.logInfoMessage("Updated \(found) RTTI Type Descriptors")
+		}
+	}
 
 		/*
 		 import hopper_api
@@ -365,4 +386,3 @@ extension HopperCpp {
 			 break
 
 	 */
-}
