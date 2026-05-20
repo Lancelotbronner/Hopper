@@ -7,14 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		73885FAE2FBD47A600B92252 /* Hopper++.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73885FAD2FBD47A100B92252 /* Hopper++.swift */; };
+		73885FAE2FBD47A600B92252 /* HopperCpp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73885FAD2FBD47A100B92252 /* HopperCpp.swift */; };
 		73885FB12FBD480200B92252 /* CoreHopper in Frameworks */ = {isa = PBXBuildFile; productRef = 73885FB02FBD480200B92252 /* CoreHopper */; };
 		73885FB52FBD485700B92252 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 73885FB32FBD485700B92252 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		07AC766318C8CB9A007D5414 /* Hopper++.hopperTool */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Hopper++.hopperTool"; sourceTree = BUILT_PRODUCTS_DIR; };
-		73885FAD2FBD47A100B92252 /* Hopper++.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Hopper++.swift"; sourceTree = "<group>"; };
+		07AC766318C8CB9A007D5414 /* HopperCpp.hopperTool */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HopperCpp.hopperTool; sourceTree = BUILT_PRODUCTS_DIR; };
+		73885FAD2FBD47A100B92252 /* HopperCpp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HopperCpp.swift; sourceTree = "<group>"; };
 		73885FB22FBD484F00B92252 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		73885FB42FBD485700B92252 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -36,7 +36,7 @@
 			children = (
 				73885FB32FBD485700B92252 /* InfoPlist.strings */,
 				73885FB22FBD484F00B92252 /* Info.plist */,
-				73885FAD2FBD47A100B92252 /* Hopper++.swift */,
+				73885FAD2FBD47A100B92252 /* HopperCpp.swift */,
 				07AC766418C8CB9A007D5414 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -44,7 +44,7 @@
 		07AC766418C8CB9A007D5414 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				07AC766318C8CB9A007D5414 /* Hopper++.hopperTool */,
+				07AC766318C8CB9A007D5414 /* HopperCpp.hopperTool */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -52,9 +52,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		07AC766218C8CB9A007D5414 /* Hopper++ */ = {
+		07AC766218C8CB9A007D5414 /* HopperCpp */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 07AC767118C8CB9A007D5414 /* Build configuration list for PBXNativeTarget "Hopper++" */;
+			buildConfigurationList = 07AC767118C8CB9A007D5414 /* Build configuration list for PBXNativeTarget "HopperCpp" */;
 			buildPhases = (
 				07AC765F18C8CB9A007D5414 /* Sources */,
 				07AC766018C8CB9A007D5414 /* Frameworks */,
@@ -65,9 +65,9 @@
 			);
 			dependencies = (
 			);
-			name = "Hopper++";
+			name = HopperCpp;
 			productName = SampleTool;
-			productReference = 07AC766318C8CB9A007D5414 /* Hopper++.hopperTool */;
+			productReference = 07AC766318C8CB9A007D5414 /* HopperCpp.hopperTool */;
 			productType = "com.apple.product-type.bundle";
 		};
 /* End PBXNativeTarget section */
@@ -86,7 +86,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 07AC765E18C8CB9A007D5414 /* Build configuration list for PBXProject "Hopper++" */;
+			buildConfigurationList = 07AC765E18C8CB9A007D5414 /* Build configuration list for PBXProject "HopperCpp" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -102,7 +102,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				07AC766218C8CB9A007D5414 /* Hopper++ */,
+				07AC766218C8CB9A007D5414 /* HopperCpp */,
 			);
 		};
 /* End PBXProject section */
@@ -142,7 +142,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				73885FAE2FBD47A600B92252 /* Hopper++.swift in Sources */,
+				73885FAE2FBD47A600B92252 /* HopperCpp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -342,7 +342,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		07AC765E18C8CB9A007D5414 /* Build configuration list for PBXProject "Hopper++" */ = {
+		07AC765E18C8CB9A007D5414 /* Build configuration list for PBXProject "HopperCpp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				07AC766F18C8CB9A007D5414 /* Debug */,
@@ -351,7 +351,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		07AC767118C8CB9A007D5414 /* Build configuration list for PBXNativeTarget "Hopper++" */ = {
+		07AC767118C8CB9A007D5414 /* Build configuration list for PBXNativeTarget "HopperCpp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				07AC767218C8CB9A007D5414 /* Debug */,

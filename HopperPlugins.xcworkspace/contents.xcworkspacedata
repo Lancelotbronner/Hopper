@@ -5,6 +5,6 @@
       location = "group:HopperKit">
    </FileRef>
    <FileRef
-      location = "group:Hopper++/Hopper++.xcodeproj">
+      location = "group:Hopper++/HopperCpp.xcodeproj">
    </FileRef>
 </Workspace>

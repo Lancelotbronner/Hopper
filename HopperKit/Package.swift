@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
 	name: "HopperKit",
 	products: [
-		.library(name: "CoreHopper", type: .dynamic, targets: [
+		.library(name: "CoreHopper", targets: [
 			"HopperKit"
 		]),
 	],

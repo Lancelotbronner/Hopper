@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "07AC766218C8CB9A007D5414"
-               BuildableName = "Hopper++.hopperTool"
-               BlueprintName = "Hopper++"
-               ReferencedContainer = "container:Hopper++.xcodeproj">
+               BuildableName = "HopperCpp.hopperTool"
+               BlueprintName = "HopperCpp"
+               ReferencedContainer = "container:HopperCpp.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -52,9 +52,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "07AC766218C8CB9A007D5414"
-            BuildableName = "Hopper++.hopperTool"
-            BlueprintName = "Hopper++"
-            ReferencedContainer = "container:Hopper++.xcodeproj">
+            BuildableName = "HopperCpp.hopperTool"
+            BlueprintName = "HopperCpp"
+            ReferencedContainer = "container:HopperCpp.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
    </ProfileAction>

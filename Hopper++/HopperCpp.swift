@@ -1,6 +1,6 @@
 //
-//  Hopper++.swift
-//  Hopper++
+//  HopperCpp.swift
+//  HopperCpp
 //
 //  Created by Vincent Bénony on 26/04/2019.
 //  Copyright © 2019 Cryptic Apps. All rights reserved.
@@ -124,6 +124,13 @@ extension HopperCpp {
 			let file = doc.disassembledFile(),
 			let data = file.segmentNamed(".data")
 		else { return }
+
+		doc.logInfoMessage("end \(data.endAddress()) vs mapped \(data.endMappedDataAddress())")
+		return;
+
+		doc.begin(toWait: "Reloading RTTI Type Descriptor")
+		defer { doc.endWaiting() }
+
 		let tag = file.buildTag("RTTI Type Descriptor")
 
 		for addr in data.mappedAddresses {
@@ -160,6 +167,9 @@ extension HopperCpp {
 
 			file.defineStructure(ty, at: addr - 8)
 			file.add(tag, at: addr - 8)
+
+			let completion = Int(Double(addr) / Double(data.endMappedDataAddress()) * 100)
+			doc.logInfoMessage("\(completion) \(mangled)")
 		}
 
 		/*
