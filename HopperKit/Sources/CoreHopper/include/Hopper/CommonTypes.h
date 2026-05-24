@@ -13,6 +13,8 @@
 #ifndef _HOPPER_COMMONTYPES_H_
 #define _HOPPER_COMMONTYPES_H_
 
+#include <stddef.h>
+
 #ifdef __OBJC__
     #import <Foundation/Foundation.h>
 #endif

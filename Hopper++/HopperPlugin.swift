@@ -58,25 +58,7 @@ class HopperPlugin : NSObject, HopperTool {
 	func toolMenuDescription() -> [[String : Any]] {
 		[
 			[
-				HPM_TITLE: "Sample Tool Fct1",
-				HPM_SELECTOR: "fct1:"
-			],
-
-			[
-				HPM_TITLE: "Sample Tool Menu",
-				HPM_SUBMENU: [
-					[
-						HPM_TITLE: "Fct 2",
-						HPM_SELECTOR: "fct2:"
-					],
-					[
-						HPM_TITLE: "Fct 3",
-						HPM_SELECTOR: "fct3:"
-					]
-				]
-			],
-			[
-				HPM_TITLE: "C++",
+				HPM_TITLE: "C++ for Windows PE",
 				HPM_SUBMENU: [
 					[
 						HPM_TITLE: "Reload RTTI Type Descriptors",
@@ -86,47 +68,28 @@ class HopperPlugin : NSObject, HopperTool {
 						HPM_TITLE: "Scan for Virtual Function Tables",
 						HPM_SELECTOR: "scanForVirtualFunctionTables:",
 					],
+				]
+			],
+			[
+				HPM_TITLE: "C++ for Itanium",
+				HPM_SUBMENU: [
 					[
-						HPM_TITLE: "Reload RTTI Complete Object Locators",
-						HPM_SELECTOR: "reloadCompleteObjectLocators:"
-					]
+						HPM_TITLE: "Create RTTI types",
+						HPM_SELECTOR: "itanium_types:"
+					],
 				]
 			]
 		]
-	}
-
-	@objc func fct1(_ sender: AnyObject!) {
-		if let doc = services.currentDocument() {
-			doc.begin(toWait: "I'm waiting…")
-			let msg = "Function1: address is \(String(format: "0x%llx", doc.currentAddress()))"
-			doc.displayAlert(withMessageText: "Info",
-							 defaultButton: "OK",
-							 alternateButton: nil,
-							 otherButton: nil,
-							 informativeText: msg)
-			doc.endWaiting()
-		}
-	}
-
-	@objc func fct2(_ sender: AnyObject!) {
-		if let doc = services.currentDocument() {
-			doc.displayAlert(withMessageText: "Info",
-							 defaultButton: "OK",
-							 alternateButton: nil,
-							 otherButton: nil,
-							 informativeText: "Function 2 triggered")
-		}
-	}
-
-	@objc func fct3(_ sender: AnyObject!) {
-		if let doc = services.currentDocument() {
-			doc.logStringMessage("Function 3 triggered")
-		}
 	}
 }
 
 extension HopperPlugin {
 	static let type_info = ".?AVtype_info@@"
+
+	@objc func itanium_types(_ sender: AnyObject!) {
+		guard let ctx = Itanium(services: services) else { return }
+		ctx.scan()
+	}
 
 	@objc func reloadTypeDescriptors(_ sender: AnyObject!) {
 		guard let doc = services.currentDocument() else { return }
@@ -256,7 +219,7 @@ extension HopperPlugin {
 	}
 
 	@objc func scanForVirtualFunctionTables(_ sender: AnyObject!) {
-		guard var ctx = CppContext("Scan for Virtual Function Tables", services: services) else { return }
+		guard var ctx = WindowsPE("Scan for Virtual Function Tables", services: services) else { return }
 		let found = ctx.scanForVirtualFunctionTables()
 		ctx.file.beginUndoRedoTransaction(withName: "Scan for Virtual Function Tables")
 		ctx.doc.logInfoMessage("Scanned \(found) Virtual Function Tables")

@@ -1,5 +1,5 @@
 //
-//  CppContext.swift
+//  WindowsPE.swift
 //  HopperCpp
 //
 //  Created by Christophe Bronner on 2026-05-20.
@@ -8,7 +8,7 @@
 
 import CoreHopper
 
-struct CppContext {
+struct WindowsPE {
 	let services: any HPHopperServices
 	let doc: any HPDocument & NSObjectProtocol
 	let file: any HPDisassembledFile & NSObjectProtocol
@@ -124,7 +124,7 @@ struct CppContext {
 	}
 }
 
-extension CppContext {
+extension WindowsPE {
 	func label(_ addr: Address, as name: String, for task: String) {
 		let existing = file.findVirtualAddressNamed(name)
 		if existing > 0 {
